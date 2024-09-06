@@ -1,51 +1,38 @@
 package com.example.arcoretest
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import com.example.arcoretest.ui.theme.ARCoreTestTheme
 import com.google.android.filament.Engine
 import com.google.ar.core.Anchor
 import com.google.ar.core.Config
+import com.google.ar.core.Earth
 import com.google.ar.core.Frame
-import com.google.ar.core.Plane
 import com.google.ar.core.TrackingFailureReason
+import com.google.ar.core.TrackingState
 import io.github.sceneview.ar.ARScene
-import io.github.sceneview.ar.arcore.createAnchorOrNull
-import io.github.sceneview.ar.arcore.getUpdatedPlanes
-import io.github.sceneview.ar.arcore.isValid
-import io.github.sceneview.ar.getDescription
 import io.github.sceneview.ar.node.AnchorNode
 import io.github.sceneview.ar.rememberARCameraNode
-import io.github.sceneview.collision.Vector3
 import io.github.sceneview.loaders.MaterialLoader
 import io.github.sceneview.loaders.ModelLoader
 import io.github.sceneview.math.Rotation
 import io.github.sceneview.model.ModelInstance
-import io.github.sceneview.node.CubeNode
 import io.github.sceneview.node.ModelNode
+import io.github.sceneview.node.Node
 import io.github.sceneview.rememberCollisionSystem
 import io.github.sceneview.rememberEngine
 import io.github.sceneview.rememberMaterialLoader
@@ -65,6 +52,7 @@ data class ARNode(
     val id: String,
     val latitude: Double,
     val longitude: Double,
+    val altitude: Double,
     val model: String,
     val isActive: Boolean
 )
@@ -86,12 +74,35 @@ class ARViewModel : ViewModel() {
     }
 }
 
+private const val TAG = "MainActivity"
+
 class MainActivity : ComponentActivity() {
     private val viewModel: ARViewModel by viewModels()
 
     private val nodes: MutableList<ARNode> = mutableListOf(
-        ARNode("1", 36.106439100723954, 128.4165645218601, "models/arrow.glb", false),
-        ARNode("2", 36.10642826562254, 128.41658732063672, "models/raccoon1.glb", true)
+        ARNode("0", 36.1069, 128.4167, 10.0, "models/raccoon1.glb", true),
+        ARNode("1", 36.1069, 128.4167, 40.0, "models/quest.glb", true),
+        ARNode("2", 36.1069, 128.4167, 40.5, "models/quest.glb", true),
+        ARNode("3", 36.1069, 128.4167, 41.0, "models/quest.glb", true),
+        ARNode("4", 36.1069, 128.4167, 41.5, "models/quest.glb", true),
+        ARNode("5", 36.1069, 128.4167, 42.0, "models/quest.glb", true),
+        ARNode("6", 36.1069, 128.4167, 42.5, "models/quest.glb", true),
+        ARNode("7", 36.1069, 128.4167, 43.0, "models/raccoon1.glb", true),
+        ARNode("8", 36.1069, 128.4167, 43.5, "models/raccoon1.glb", true),
+        ARNode("9", 36.1069, 128.4167, 44.0, "models/raccoon1.glb", true),
+        ARNode("10", 36.1069, 128.4167, 44.5, "models/raccoon1.glb", true),
+        ARNode("11", 36.1069, 128.4167, 45.0, "models/raccoon1.glb", true),
+        ARNode("12", 36.1069, 128.4167, 45.5, "models/raccoon1.glb", true),
+        ARNode("13", 36.1069, 128.4167, 46.0, "models/raccoon1.glb", true),
+        ARNode("14", 36.1069, 128.4167, 46.5, "models/raccoon1.glb", true),
+        ARNode("15", 36.1069, 128.4167, 47.0, "models/raccoon1.glb", true),
+        ARNode("16", 36.1069, 128.4167, 47.5, "models/raccoon1.glb", true),
+        ARNode("17", 36.1069, 128.4167, 48.0, "models/raccoon1.glb", true),
+        ARNode("18", 36.1069, 128.4167, 48.5, "models/raccoon1.glb", true),
+        ARNode("19", 36.1069, 128.4167, 49.0, "models/raccoon1.glb", true),
+        ARNode("20", 36.1069, 128.4167, 49.5, "models/raccoon1.glb", true),
+        ARNode("21", 36.1069, 128.4167, 50.0, "models/raccoon1.glb", true),
+        ARNode("22", 36.1069, 128.4167, 50.5, "models/raccoon1.glb", true),
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -116,13 +127,16 @@ class MainActivity : ComponentActivity() {
         val childNodes = rememberNodes()
         val view = rememberView(engine)
         val collisionSystem = rememberCollisionSystem(view)
-        var planeRenderer by remember { mutableStateOf(true) }
+        val planeRenderer by remember { mutableStateOf(true) }
 
         val modelInstances = remember { mutableListOf<ModelInstance>() }
         var trackingFailureReason by remember {
             mutableStateOf<TrackingFailureReason?>(null)
         }
         var frame by remember { mutableStateOf<Frame?>(null) }
+
+        val createdAnchorNodes = remember { mutableMapOf<String, AnchorNode>() }
+        val coroutineScope = rememberCoroutineScope()
 
         Box(modifier = Modifier.fillMaxSize()) {
 
@@ -139,7 +153,8 @@ class MainActivity : ComponentActivity() {
                             true -> Config.DepthMode.AUTOMATIC
                             else -> Config.DepthMode.DISABLED
                         }
-                    config.instantPlacementMode = Config.InstantPlacementMode.LOCAL_Y_UP
+                    config.geospatialMode = Config.GeospatialMode.ENABLED
+                    config.instantPlacementMode = Config.InstantPlacementMode.DISABLED
                     config.lightEstimationMode =
                         Config.LightEstimationMode.ENVIRONMENTAL_HDR
                 },
@@ -148,65 +163,77 @@ class MainActivity : ComponentActivity() {
                 onTrackingFailureChanged = {
                     trackingFailureReason = it
                 },
-                // 첫번째 수평 평면 감지 & 매 프레임마다 호출
+                // 매 프레임마다 호출
                 onSessionUpdated = { session, updatedFrame ->
                     frame = updatedFrame
 
-                    if (childNodes.isEmpty()) {
-                        updatedFrame.getUpdatedPlanes()
-                            .firstOrNull { it.type == Plane.Type.HORIZONTAL_UPWARD_FACING }
-                            ?.let { it.createAnchorOrNull(it.centerPose) }?.let { anchor ->
-                                childNodes += createAnchorNode(
-                                    engine = engine,
-                                    modelLoader = modelLoader,
-                                    materialLoader = materialLoader,
-                                    modelInstances = modelInstances,
-                                    anchor = anchor
-                                )
-                            }
+                    val earth = session.earth
+
+                    if (earth?.trackingState == TrackingState.TRACKING) {
+                        Log.d(TAG, "ARSceneComposable: 로오오그!!")
+                        arNodes.forEach { node ->
+                            processNode(
+                                node,
+                                earth,
+                                engine,
+                                modelLoader,
+                                materialLoader,
+                                modelInstances,
+                                childNodes,
+                                createdAnchorNodes)
+                        }
                     }
                 },
                 // 탭한 부분에 3D 모델 배치
                 onGestureListener = rememberOnGestureListener(
                     onSingleTapConfirmed = { motionEvent, node ->
-                        if (node == null) {
-                            val hitResults = frame?.hitTest(motionEvent.x, motionEvent.y)
-                            hitResults?.firstOrNull {
-                                it.isValid(
-                                    depthPoint = false,
-                                    point = false
-                                )
-                            }?.createAnchorOrNull()
-                                ?.let { anchor ->
-                                    planeRenderer = false
-                                    childNodes += createAnchorNode(
-                                        engine = engine,
-                                        modelLoader = modelLoader,
-                                        materialLoader = materialLoader,
-                                        modelInstances = modelInstances,
-                                        anchor = anchor
-                                    )
-                                }
-                        }
+
                     })
             )
-            Text(
-                modifier = Modifier
-                    .systemBarsPadding()
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .padding(top = 16.dp, start = 32.dp, end = 32.dp),
-                textAlign = TextAlign.Center,
-                fontSize = 28.sp,
-                color = Color.White,
-                text = trackingFailureReason?.let {
-                    it.getDescription(LocalContext.current)
-                } ?: if (childNodes.isEmpty()) {
-                    stringResource(R.string.point_your_phone_down)
-                } else {
-                    stringResource(R.string.tap_anywhere_to_add_model)
+        }
+    }
+
+    private fun processNode(
+        node: ARNode,
+        earth: Earth?,
+        engine: Engine,
+        modelLoader: ModelLoader,
+        materialLoader: MaterialLoader,
+        modelInstances: MutableList<ModelInstance>,
+        childNodes: MutableList<Node>,
+        createdAnchorNodes: MutableMap<String, AnchorNode>
+    ) {
+        if (node.isActive && createdAnchorNodes.containsKey(node.id)) {
+            try {
+                val earthAnchor = earth?.createAnchor(
+                    node.latitude,
+                    node.longitude,
+                    node.altitude,
+                    0f, 0f, 0f, 1f
+                )
+
+                earthAnchor?.let {
+                    val anchorNode = createAnchorNode(
+                        engine = engine,
+                        modelLoader = modelLoader,
+                        materialLoader = materialLoader,
+                        modelInstances = modelInstances,
+                        anchor = earthAnchor
+                    )
+
+                    childNodes.add(anchorNode)
+                    createdAnchorNodes[node.id] = anchorNode
                 }
-            )
+            } catch (e: Exception) {
+                Log.e("ARScene", "Error creating anchor for ${node.id}: ${e.message}")
+            }
+        } else if (!node.isActive && createdAnchorNodes.containsKey(node.id)) {
+            val anchorNode = createdAnchorNodes.remove(node.id)
+            anchorNode?.let {
+                childNodes.remove(it)
+                it.destroy()
+            }
+            Log.d("ARScene", "Removed anchor node for ${node.id}")
         }
     }
 
@@ -231,22 +258,46 @@ class MainActivity : ComponentActivity() {
             isEditable = true
             rotation = Rotation(0f, 180f, 0f)
         }
-        val boundingBoxNode = CubeNode(
-            engine,
-            size = modelNode.extents,
-            center = modelNode.center,
-            materialInstance = materialLoader.createColorInstance(Color.White.copy(alpha = 0.5f))
-        ).apply {
-            isVisible = false
-        }
-        modelNode.addChildNode(boundingBoxNode)
+
         anchorNode.addChildNode(modelNode)
 
-        listOf(modelNode, anchorNode).forEach {
-            it.onEditingChanged = { editingTransforms ->
-                boundingBoxNode.isVisible = editingTransforms.isNotEmpty()
-            }
-        }
         return anchorNode
     }
+}
+
+fun tmp() {
+    // 첫번째 수평 평면 감지
+//                    if (childNodes.isEmpty()) {
+//                        updatedFrame.getUpdatedPlanes()
+//                            .firstOrNull { it.type == Plane.Type.HORIZONTAL_UPWARD_FACING }
+//                            ?.let { it.createAnchorOrNull(it.centerPose) }?.let { anchor ->
+//                                childNodes += createAnchorNode(
+//                                    engine = engine,
+//                                    modelLoader = modelLoader,
+//                                    materialLoader = materialLoader,
+//                                    modelInstances = modelInstances,
+//                                    anchor = anchor
+//                                )
+//                            }
+//                    }
+
+//    if (node == null) {
+//        val hitResults = frame?.hitTest(motionEvent.x, motionEvent.y)
+//        hitResults?.firstOrNull {
+//            it.isValid(
+//                depthPoint = false,
+//                point = false
+//            )
+//        }?.createAnchorOrNull()
+//            ?.let { anchor ->
+//                planeRenderer = false
+//                childNodes += createAnchorNode(
+//                    engine = engine,
+//                    modelLoader = modelLoader,
+//                    materialLoader = materialLoader,
+//                    modelInstances = modelInstances,
+//                    anchor = anchor
+//                )
+//            }
+//    }
 }
