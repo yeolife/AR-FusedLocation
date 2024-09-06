@@ -1,5 +1,6 @@
 package com.example.arcoretest
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -40,10 +41,16 @@ import io.github.sceneview.rememberModelLoader
 import io.github.sceneview.rememberNodes
 import io.github.sceneview.rememberOnGestureListener
 import io.github.sceneview.rememberView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.forEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val kModelFile = "models/direction.glb"
 private const val kMaxModelInstances = 10
@@ -78,6 +85,9 @@ private const val TAG = "MainActivity"
 
 class MainActivity : ComponentActivity() {
     private val viewModel: ARViewModel by viewModels()
+
+    private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
+    val createdAnchorNodes = mutableMapOf<String, AnchorNode>()
 
     private val nodes: MutableList<ARNode> = mutableListOf(
         ARNode("0", 36.1069, 128.4167, 10.0, "models/raccoon1.glb", true),
@@ -135,9 +145,6 @@ class MainActivity : ComponentActivity() {
         }
         var frame by remember { mutableStateOf<Frame?>(null) }
 
-        val createdAnchorNodes = remember { mutableMapOf<String, AnchorNode>() }
-        val coroutineScope = rememberCoroutineScope()
-
         Box(modifier = Modifier.fillMaxSize()) {
 
             ARScene(
@@ -170,7 +177,7 @@ class MainActivity : ComponentActivity() {
                     val earth = session.earth
 
                     if (earth?.trackingState == TrackingState.TRACKING) {
-                        Log.d(TAG, "ARSceneComposable: 로오오그!!")
+                        Log.d(TAG, "ARSceneComposable: 트래킹")
                         arNodes.forEach { node ->
                             processNode(
                                 node,
@@ -203,7 +210,7 @@ class MainActivity : ComponentActivity() {
         childNodes: MutableList<Node>,
         createdAnchorNodes: MutableMap<String, AnchorNode>
     ) {
-        if (node.isActive && createdAnchorNodes.containsKey(node.id)) {
+        if (node.isActive) {
             try {
                 val earthAnchor = earth?.createAnchor(
                     node.latitude,
@@ -263,41 +270,4 @@ class MainActivity : ComponentActivity() {
 
         return anchorNode
     }
-}
-
-fun tmp() {
-    // 첫번째 수평 평면 감지
-//                    if (childNodes.isEmpty()) {
-//                        updatedFrame.getUpdatedPlanes()
-//                            .firstOrNull { it.type == Plane.Type.HORIZONTAL_UPWARD_FACING }
-//                            ?.let { it.createAnchorOrNull(it.centerPose) }?.let { anchor ->
-//                                childNodes += createAnchorNode(
-//                                    engine = engine,
-//                                    modelLoader = modelLoader,
-//                                    materialLoader = materialLoader,
-//                                    modelInstances = modelInstances,
-//                                    anchor = anchor
-//                                )
-//                            }
-//                    }
-
-//    if (node == null) {
-//        val hitResults = frame?.hitTest(motionEvent.x, motionEvent.y)
-//        hitResults?.firstOrNull {
-//            it.isValid(
-//                depthPoint = false,
-//                point = false
-//            )
-//        }?.createAnchorOrNull()
-//            ?.let { anchor ->
-//                planeRenderer = false
-//                childNodes += createAnchorNode(
-//                    engine = engine,
-//                    modelLoader = modelLoader,
-//                    materialLoader = materialLoader,
-//                    modelInstances = modelInstances,
-//                    anchor = anchor
-//                )
-//            }
-//    }
 }
