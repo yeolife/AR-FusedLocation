@@ -86,8 +86,7 @@ private const val TAG = "MainActivity"
 class MainActivity : ComponentActivity() {
     private val viewModel: ARViewModel by viewModels()
 
-    private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
-    val createdAnchorNodes = mutableMapOf<String, AnchorNode>()
+    private val createdAnchorNodes = mutableMapOf<String, AnchorNode>()
 
     private val nodes: MutableList<ARNode> = mutableListOf(
         ARNode("0", 36.1069, 128.4167, 10.0, "models/raccoon1.glb", true),
@@ -137,7 +136,7 @@ class MainActivity : ComponentActivity() {
         val childNodes = rememberNodes()
         val view = rememberView(engine)
         val collisionSystem = rememberCollisionSystem(view)
-        val planeRenderer by remember { mutableStateOf(true) }
+        val planeRenderer by remember { mutableStateOf(false) }
 
         val modelInstances = remember { mutableListOf<ModelInstance>() }
         var trackingFailureReason by remember {
@@ -176,7 +175,7 @@ class MainActivity : ComponentActivity() {
 
                     val earth = session.earth
 
-                    if (earth?.trackingState == TrackingState.TRACKING) {
+//                    if (earth?.trackingState == TrackingState.TRACKING) {
                         Log.d(TAG, "ARSceneComposable: 트래킹")
                         arNodes.forEach { node ->
                             processNode(
@@ -189,7 +188,7 @@ class MainActivity : ComponentActivity() {
                                 childNodes,
                                 createdAnchorNodes)
                         }
-                    }
+//                    }
                 },
                 // 탭한 부분에 3D 모델 배치
                 onGestureListener = rememberOnGestureListener(
