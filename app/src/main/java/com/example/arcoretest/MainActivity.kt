@@ -81,22 +81,8 @@ class MainActivity : ComponentActivity() {
     private val createdAnchorNodes = mutableMapOf<String, AnchorNode>()
 
     private val nodes: MutableList<ARNode> = mutableListOf(
-        ARNode("1", 36.10167, 128.41989, 39.5, "models/quest.glb", true),
-        ARNode("2", 36.10167, 128.41989, 40.0, "models/chick.glb", true),
-        ARNode("3", 36.10167, 128.41989, 40.5, "models/damaged_helmet.glb", true),
-        ARNode("4", 36.10167, 128.41989, 41.0, "models/otter1.glb", true),
-        ARNode("5", 36.10167, 128.41989, 41.5, "models/otter2.glb", true),
-        ARNode("6", 36.10167, 128.41989, 42.0, "models/quest.glb", true),
-        ARNode("7", 36.10167, 128.41989, 42.5, "models/damaged_helmet.glb", true),
-        ARNode("8", 36.10167, 128.41989, 43.0, "models/raccoon2.glb", true),
-        ARNode("9", 36.10167, 128.41989, 43.5, "models/chick.glb", true),
-        ARNode("10", 36.10167, 128.41989, 44.0, "models/damaged_helmet.glb", true),
-        ARNode("11", 36.10167, 128.41989, 44.5, "models/otter1.glb", true),
-        ARNode("12", 36.10167, 128.41989, 45.0, "models/otter2.glb", true),
-        ARNode("13", 36.10167, 128.41989, 45.5, "models/quest.glb", true),
-        ARNode("14", 36.10167, 128.41989, 46.0, "models/raccoon1.glb", true),
-        ARNode("15", 36.10167, 128.41989, 46.5, "models/raccoon2.glb", true),
-        ARNode("16", 36.10167, 128.41989, 47.0, "models/chick.glb", true),
+        ARNode("11", 36.10167, 128.41989, 76.60828696470708, "models/chick.glb", true),
+        ARNode("12", 36.10167, 128.41989, 76.60828696470708, "models/otter2.glb", true),
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -129,6 +115,8 @@ class MainActivity : ComponentActivity() {
         }
         var frame by remember { mutableStateOf<Frame?>(null) }
 
+        var nodesProcessed by remember { mutableStateOf(false) }
+
         Box(modifier = Modifier.fillMaxSize()) {
 
             ARScene(
@@ -158,10 +146,10 @@ class MainActivity : ComponentActivity() {
                 onSessionUpdated = { session, updatedFrame ->
                     frame = updatedFrame
 
-                    Log.d(TAG, "ARSceneComposable: ${session.earth?.earthState}")
-
                     session.earth?.let { earth ->
-                        if(earth.trackingState == TrackingState.TRACKING) {
+                        if(earth.trackingState == TrackingState.TRACKING && !nodesProcessed) {
+                            Log.d(TAG, "ARSceneComposable: ${session.earth?.cameraGeospatialPose?.altitude}")
+                            Log.d(TAG, "ARSceneComposable2: ${session.earth?.cameraGeospatialPose?.longitude}")
                             arNodes.forEach { node ->
                                 session.earth?.let {
                                     processNode(
@@ -169,16 +157,16 @@ class MainActivity : ComponentActivity() {
                                         it,
                                         engine,
                                         modelLoader,
-                                        materialLoader,
                                         modelInstances,
                                         childNodes,
                                         createdAnchorNodes)
                                 }
                             }
+
+                            nodesProcessed = true
                         }
                     }
                 },
-                // 탭한 부분에 3D 모델 배치
                 onGestureListener = rememberOnGestureListener(
                     onSingleTapConfirmed = { motionEvent, node -> })
             )
@@ -190,7 +178,6 @@ class MainActivity : ComponentActivity() {
         earth: Earth,
         engine: Engine,
         modelLoader: ModelLoader,
-        materialLoader: MaterialLoader,
         modelInstances: MutableList<ModelInstance>,
         childNodes: MutableList<Node>,
         createdAnchorNodes: MutableMap<String, AnchorNode>
@@ -212,12 +199,9 @@ class MainActivity : ComponentActivity() {
                         node.model,
                         engine = engine,
                         modelLoader = modelLoader,
-                        materialLoader = materialLoader,
                         modelInstances = modelInstances,
                         anchor = earthAnchor
                     )
-
-                    Log.d(TAG, "processNode: 왜 생성?")
 
                     childNodes.add(anchorNode)
                     createdAnchorNodes[node.id] = anchorNode
@@ -238,11 +222,15 @@ class MainActivity : ComponentActivity() {
         fileUrl: String,
         engine: Engine,
         modelLoader: ModelLoader,
-        materialLoader: MaterialLoader,
         modelInstances: MutableList<ModelInstance>,
         anchor: Anchor
     ): AnchorNode {
-        val anchorNode = AnchorNode(engine = engine, anchor = anchor)
+        val anchorNode = AnchorNode(engine = engine, anchor = anchor).apply {
+            isEditable = false
+            isPositionEditable = false
+            isRotationEditable = false
+            isScaleEditable = false
+        }
         val modelNode = ModelNode(
             modelInstance = modelInstances.apply {
                 if (isEmpty()) {
