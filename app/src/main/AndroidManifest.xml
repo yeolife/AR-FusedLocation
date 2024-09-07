@@ -10,6 +10,9 @@
 
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-feature android:name="android.hardware.location.gps"/>
+
+    <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
         android:allowBackup="true"
@@ -25,6 +28,9 @@
             android:name="com.google.ar.core"
             android:value="required"
             tools:replace="android:value" />
+        <meta-data
+            android:name="com.google.android.ar.API_KEY"
+            android:value="AIzaSyDUBwnTK1JFsZCx5o47X9O0KkJBnDiPOL0" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
