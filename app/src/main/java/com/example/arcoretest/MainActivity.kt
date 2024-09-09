@@ -61,111 +61,9 @@ import kotlin.math.log
 private const val kMaxModelInstances = 10
 private const val VISIBLE_DISTANCE_THRESHOLD = 100.0 // meters
 
-data class ARNode(
-    val id: String,
-    val latitude: Double,
-    val longitude: Double,
-    val altitude: Double,
-    val model: String,
-    val isActive: Boolean
-)
-
-class ARViewModel : ViewModel() {
-    private val _arNodes = MutableStateFlow<List<ARNode>>(emptyList())
-    val arNodes: StateFlow<List<ARNode>> = _arNodes.asStateFlow()
-
-    fun setARNodes(nodes: List<ARNode>) {
-        _arNodes.value = nodes
-    }
-
-    fun updateNodeStatus(id: String, isActive: Boolean) {
-        _arNodes.update { nodes ->
-            nodes.map { node ->
-                if (node.id == id) node.copy(isActive = isActive) else node
-            }
-        }
-    }
-}
-
 private const val TAG = "MainActivity"
-
 class MainActivity : ComponentActivity() {
     private val viewModel: ARViewModel by viewModels()
-
-    private val nodes: MutableList<ARNode> = mutableListOf(
-        ARNode(
-            "1",
-            36.10716645372349,
-            128.41647777400757,
-            73.54002152141184,
-            "models/otter1.glb",
-            true
-        ),
-        ARNode(
-            "2",
-            36.10719340772349,
-            128.41647777400757,
-            73.54002152141184,
-            "models/quest.glb",
-            true
-        ),
-        ARNode(
-            "3",
-            36.10714848472349,
-            128.41645558800757,
-            73.54002152141184,
-            "models/chick.glb",
-            true
-        ),
-        ARNode(
-            "4",
-            36.10718419443119,
-            128.41647704496236,
-            73.54002152141184,
-            "models/turtle1.glb",
-            true
-        ),
-        ARNode(
-            "5",
-            36.10718419443119,
-            128.41647704496236,
-            73.54002152141184,
-            "models/turtle1.glb",
-            false
-        ),
-        ARNode(
-            "6",
-        36.106748456430424,
-        128.41639460336677,
-        68.46302377991378,
-        "models/turtle1.glb",
-        true
-        ),
-        ARNode(
-            "7",
-            36.10688456844942,
-            128.41625326737577,
-            68.78246488422155,
-            "models/otter1.glb",
-            true
-        ),
-        ARNode(
-            "8",
-            36.10672958995879,
-            128.41622445983785,
-            67.63452187180519,
-            "models/chick.glb",
-            true
-        ),
-        ARNode(
-            "9",
-            36.1067327895906,
-            128.4162147884974,
-            68.18832830246538,
-            "models/quest.glb",
-            true
-        ),
-    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -199,10 +97,6 @@ class MainActivity : ComponentActivity() {
 
         var nodesProcessed by remember { mutableStateOf(false) }
 
-        var longitude by remember { mutableStateOf(0.0) }
-        var latitude by remember { mutableStateOf(0.0) }
-        var altitude by remember { mutableStateOf(0.0) }
-
         Box(modifier = Modifier.fillMaxSize()) {
             ARScene(
                 modifier = Modifier.fillMaxSize(),
@@ -231,15 +125,8 @@ class MainActivity : ComponentActivity() {
                 onSessionUpdated = { session, updatedFrame ->
                     frame = updatedFrame
 
-
-
                     Log.d(TAG, "ARSceneComposable: ${session.earth?.cameraGeospatialPose?.horizontalAccuracy}")
                     session.earth?.let { earth ->
-
-                        latitude = earth.cameraGeospatialPose.latitude
-                        longitude = earth.cameraGeospatialPose.longitude
-                        altitude = earth.cameraGeospatialPose.altitude
-
                             if (earth.trackingState == TrackingState.TRACKING && !nodesProcessed) {
                             arNodes.forEach { node ->
                                 session.earth?.let {
@@ -259,42 +146,8 @@ class MainActivity : ComponentActivity() {
                     }
                 },
                 onGestureListener = rememberOnGestureListener(
-                    onSingleTapConfirmed = { motionEvent, node ->
-
-                    })
+                    onSingleTapConfirmed = { motionEvent, node -> })
             )
-            Column {
-                Text(
-                    modifier = Modifier
-                        .systemBarsPadding()
-                        .fillMaxWidth()
-                        .padding(top = 16.dp, start = 32.dp, end = 32.dp),
-                    textAlign = TextAlign.Center,
-                    fontSize = 28.sp,
-                    color = Color.White,
-                    text = latitude.toString()
-                )
-                Text(
-                    modifier = Modifier
-                        .systemBarsPadding()
-                        .fillMaxWidth()
-                        .padding(top = 16.dp, start = 32.dp, end = 32.dp),
-                    textAlign = TextAlign.Center,
-                    fontSize = 28.sp,
-                    color = Color.White,
-                    text = longitude.toString()
-                )
-                Text(
-                    modifier = Modifier
-                        .systemBarsPadding()
-                        .fillMaxWidth()
-                        .padding(top = 16.dp, start = 32.dp, end = 32.dp),
-                    textAlign = TextAlign.Center,
-                    fontSize = 28.sp,
-                    color = Color.White,
-                    text = altitude.toString()
-                )
-            }
         }
     }
 
@@ -304,10 +157,7 @@ class MainActivity : ComponentActivity() {
         engine: Engine,
         modelLoader: ModelLoader,
         modelInstances: MutableMap<String, ModelInstance>,
-        childNodes: MutableList<Node>,
-    ) {
-        val isVisible = 100.0 <= VISIBLE_DISTANCE_THRESHOLD
-
+        childNodes: MutableList<Node>) {
         if (node.isActive) {
             try {
                 val earthAnchor = earth.createAnchor(
