@@ -6,14 +6,26 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import com.example.arcoretest.ui.theme.ARCoreTestTheme
 import com.google.android.filament.Engine
@@ -24,9 +36,10 @@ import com.google.ar.core.Frame
 import com.google.ar.core.TrackingFailureReason
 import com.google.ar.core.TrackingState
 import io.github.sceneview.ar.ARScene
+import io.github.sceneview.ar.arcore.isTracking
+import io.github.sceneview.ar.getDescription
 import io.github.sceneview.ar.node.AnchorNode
 import io.github.sceneview.ar.rememberARCameraNode
-import io.github.sceneview.loaders.MaterialLoader
 import io.github.sceneview.loaders.ModelLoader
 import io.github.sceneview.math.Rotation
 import io.github.sceneview.model.ModelInstance
@@ -43,6 +56,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlin.math.log
 
 private const val kMaxModelInstances = 10
 private const val VISIBLE_DISTANCE_THRESHOLD = 100.0 // meters
@@ -78,11 +92,79 @@ private const val TAG = "MainActivity"
 class MainActivity : ComponentActivity() {
     private val viewModel: ARViewModel by viewModels()
 
-    private val createdAnchorNodes = mutableMapOf<String, AnchorNode>()
-
     private val nodes: MutableList<ARNode> = mutableListOf(
-        ARNode("11", 36.10167, 128.41989, 76.60828696470708, "models/chick.glb", true),
-        ARNode("12", 36.10167, 128.41989, 76.60828696470708, "models/otter2.glb", true),
+        ARNode(
+            "1",
+            36.10716645372349,
+            128.41647777400757,
+            73.54002152141184,
+            "models/otter1.glb",
+            true
+        ),
+        ARNode(
+            "2",
+            36.10719340772349,
+            128.41647777400757,
+            73.54002152141184,
+            "models/quest.glb",
+            true
+        ),
+        ARNode(
+            "3",
+            36.10714848472349,
+            128.41645558800757,
+            73.54002152141184,
+            "models/chick.glb",
+            true
+        ),
+        ARNode(
+            "4",
+            36.10718419443119,
+            128.41647704496236,
+            73.54002152141184,
+            "models/turtle1.glb",
+            true
+        ),
+        ARNode(
+            "5",
+            36.10718419443119,
+            128.41647704496236,
+            73.54002152141184,
+            "models/turtle1.glb",
+            false
+        ),
+        ARNode(
+            "6",
+        36.106748456430424,
+        128.41639460336677,
+        68.46302377991378,
+        "models/turtle1.glb",
+        true
+        ),
+        ARNode(
+            "7",
+            36.10688456844942,
+            128.41625326737577,
+            68.78246488422155,
+            "models/otter1.glb",
+            true
+        ),
+        ARNode(
+            "8",
+            36.10672958995879,
+            128.41622445983785,
+            67.63452187180519,
+            "models/chick.glb",
+            true
+        ),
+        ARNode(
+            "9",
+            36.1067327895906,
+            128.4162147884974,
+            68.18832830246538,
+            "models/quest.glb",
+            true
+        ),
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -109,7 +191,7 @@ class MainActivity : ComponentActivity() {
         val collisionSystem = rememberCollisionSystem(view)
         val planeRenderer by remember { mutableStateOf(false) }
 
-        val modelInstances = remember { mutableListOf<ModelInstance>() }
+        val modelInstances = remember { mutableMapOf<String, ModelInstance>() }
         var trackingFailureReason by remember {
             mutableStateOf<TrackingFailureReason?>(null)
         }
@@ -117,8 +199,11 @@ class MainActivity : ComponentActivity() {
 
         var nodesProcessed by remember { mutableStateOf(false) }
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        var longitude by remember { mutableStateOf(0.0) }
+        var latitude by remember { mutableStateOf(0.0) }
+        var altitude by remember { mutableStateOf(0.0) }
 
+        Box(modifier = Modifier.fillMaxSize()) {
             ARScene(
                 modifier = Modifier.fillMaxSize(),
                 childNodes = childNodes,
@@ -146,10 +231,16 @@ class MainActivity : ComponentActivity() {
                 onSessionUpdated = { session, updatedFrame ->
                     frame = updatedFrame
 
+
+
+                    Log.d(TAG, "ARSceneComposable: ${session.earth?.cameraGeospatialPose?.horizontalAccuracy}")
                     session.earth?.let { earth ->
-                        if(earth.trackingState == TrackingState.TRACKING && !nodesProcessed) {
-                            Log.d(TAG, "ARSceneComposable: ${session.earth?.cameraGeospatialPose?.altitude}")
-                            Log.d(TAG, "ARSceneComposable2: ${session.earth?.cameraGeospatialPose?.longitude}")
+
+                        latitude = earth.cameraGeospatialPose.latitude
+                        longitude = earth.cameraGeospatialPose.longitude
+                        altitude = earth.cameraGeospatialPose.altitude
+
+                            if (earth.trackingState == TrackingState.TRACKING && !nodesProcessed) {
                             arNodes.forEach { node ->
                                 session.earth?.let {
                                     processNode(
@@ -159,7 +250,7 @@ class MainActivity : ComponentActivity() {
                                         modelLoader,
                                         modelInstances,
                                         childNodes,
-                                        createdAnchorNodes)
+                                    )
                                 }
                             }
 
@@ -168,8 +259,42 @@ class MainActivity : ComponentActivity() {
                     }
                 },
                 onGestureListener = rememberOnGestureListener(
-                    onSingleTapConfirmed = { motionEvent, node -> })
+                    onSingleTapConfirmed = { motionEvent, node ->
+
+                    })
             )
+            Column {
+                Text(
+                    modifier = Modifier
+                        .systemBarsPadding()
+                        .fillMaxWidth()
+                        .padding(top = 16.dp, start = 32.dp, end = 32.dp),
+                    textAlign = TextAlign.Center,
+                    fontSize = 28.sp,
+                    color = Color.White,
+                    text = latitude.toString()
+                )
+                Text(
+                    modifier = Modifier
+                        .systemBarsPadding()
+                        .fillMaxWidth()
+                        .padding(top = 16.dp, start = 32.dp, end = 32.dp),
+                    textAlign = TextAlign.Center,
+                    fontSize = 28.sp,
+                    color = Color.White,
+                    text = longitude.toString()
+                )
+                Text(
+                    modifier = Modifier
+                        .systemBarsPadding()
+                        .fillMaxWidth()
+                        .padding(top = 16.dp, start = 32.dp, end = 32.dp),
+                    textAlign = TextAlign.Center,
+                    fontSize = 28.sp,
+                    color = Color.White,
+                    text = altitude.toString()
+                )
+            }
         }
     }
 
@@ -178,73 +303,60 @@ class MainActivity : ComponentActivity() {
         earth: Earth,
         engine: Engine,
         modelLoader: ModelLoader,
-        modelInstances: MutableList<ModelInstance>,
+        modelInstances: MutableMap<String, ModelInstance>,
         childNodes: MutableList<Node>,
-        createdAnchorNodes: MutableMap<String, AnchorNode>
     ) {
-
         val isVisible = 100.0 <= VISIBLE_DISTANCE_THRESHOLD
 
-        if (node.isActive && isVisible) {
-            if(!createdAnchorNodes.containsKey(node.id)) {
-                try {
-                    val earthAnchor = earth.createAnchor(
-                        node.latitude,
-                        node.longitude,
-                        node.altitude,
-                        0f, 0f, 0f, 1f
-                    )
+        if (node.isActive) {
+            try {
+                val earthAnchor = earth.createAnchor(
+                    node.latitude,
+                    node.longitude,
+                    node.altitude,
+                    0f, 0f, 0f, 1f
+                )
 
-                    val anchorNode = createAnchorNode(
-                        node.model,
-                        engine = engine,
-                        modelLoader = modelLoader,
-                        modelInstances = modelInstances,
-                        anchor = earthAnchor
-                    )
+                val anchorNode = createAnchorNode(
+                    node,
+                    engine = engine,
+                    modelLoader = modelLoader,
+                    modelInstances = modelInstances,
+                    anchor = earthAnchor
+                )
 
-                    childNodes.add(anchorNode)
-                    createdAnchorNodes[node.id] = anchorNode
-                } catch (e: Exception) {
-                    Log.e("ARScene", "Error creating anchor for ${node.id}: ${e.message}")
-                }
-            }
-        } else if (!node.isActive || !isVisible) {
-            createdAnchorNodes.remove(node.id)?.let {
-                childNodes.remove(it)
-                it.destroy()
-                Log.d("ARScene", "Removed anchor node for ${node.id}")
+                childNodes.add(anchorNode)
+            } catch (e: Exception) {
+                Log.e("ARScene", "Error creating anchor for ${node.id}: ${e.message}")
             }
         }
     }
 
+    // 특정 위치에 3D 모델을 배치
     private fun createAnchorNode(
-        fileUrl: String,
+        node: ARNode,
         engine: Engine,
         modelLoader: ModelLoader,
-        modelInstances: MutableList<ModelInstance>,
+        modelInstances: MutableMap<String, ModelInstance>,
         anchor: Anchor
     ): AnchorNode {
         val anchorNode = AnchorNode(engine = engine, anchor = anchor).apply {
-            isEditable = false
             isPositionEditable = false
             isRotationEditable = false
             isScaleEditable = false
         }
+
+        val modelInstance = modelInstances[node.id] ?: modelLoader.createInstancedModel(
+            node.model,
+            kMaxModelInstances
+        ).first()
+
         val modelNode = ModelNode(
-            modelInstance = modelInstances.apply {
-                if (isEmpty()) {
-                    this += modelLoader.createInstancedModel(fileUrl, kMaxModelInstances)
-                }
-            }.removeLast(),
+            modelInstance = modelInstance,
             // Scale to fit in a 0.5 meters cube
             scaleToUnits = 0.5f
         ).apply {
             // Model Node needs to be editable for independent rotation from the anchor rotation
-            isEditable = false
-            isPositionEditable = false
-            isRotationEditable = false
-            isScaleEditable = false
             rotation = Rotation(0f, 180f, 0f)
         }
 
