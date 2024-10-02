@@ -78,9 +78,8 @@ dependencies {
 
     // AR
     implementation("io.github.sceneview:arsceneview:2.2.1")
-
-    // Naver Map
-    implementation("io.github.fornewid:naver-map-compose:1.7.2")
     implementation("com.google.android.gms:play-services-location:21.0.1")
-    implementation("io.github.fornewid:naver-map-location:21.0.2")
+    implementation ("com.google.accompanist:accompanist-systemuicontroller:0.36.0")
+    implementation ("com.github.a914-gowtham:compose-ratingbar:1.2.3")
+    implementation ("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
 }
