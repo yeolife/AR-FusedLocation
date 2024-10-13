@@ -1,4 +1,4 @@
-package com.example.arcoretest
+package com.example.arcoretest.dummy
 
 data class ARNode(
     val id: String,

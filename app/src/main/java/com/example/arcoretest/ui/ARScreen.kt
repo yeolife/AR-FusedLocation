@@ -13,6 +13,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +64,8 @@ import io.github.sceneview.rememberModelLoader
 import io.github.sceneview.rememberNodes
 import io.github.sceneview.rememberOnGestureListener
 import io.github.sceneview.rememberView
+import io.github.sceneview.safeDestroyView
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 private const val TAG = "ArScreen"
@@ -141,6 +144,21 @@ fun ARSceneComposable(
         }
     }
 
+    DisposableEffect(Unit) {
+        onDispose {
+            runCatching {
+                childNodes.clear()
+                collisionSystem.destroy()
+                engine.safeDestroyView(view)
+
+                viewModel.locationManager.stopLocationUpdates()
+                coroutineScope.cancel()
+            }.onFailure {
+                it.printStackTrace()
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         ARScene(
             modifier = Modifier.fillMaxSize(),
@@ -182,7 +200,7 @@ fun ARSceneComposable(
 
                 if (frame.isTrackingPlane() && nearestQuestInfo.shouldPlace) {
                     nearestQuestInfo.npc?.let { quest ->
-                        val planeAndPose = findPlaneInView(frame, widthPx, heightPx, frame.camera)
+                        val planeAndPose = viewModel.nodeManager.findPlaneInView(frame, widthPx, heightPx, frame.camera)
 
                         if (planeAndPose != null) {
                             val (plane, pose) = planeAndPose
@@ -342,34 +360,6 @@ fun ARSceneComposable(
             onConfirm = { viewModel.onDialogConfirm() },
             onDismiss = { viewModel.onDialogDismiss() }
         )
-    }
-}
-
-private fun findPlaneInView(
-    frame: Frame,
-    width: Int,
-    height: Int,
-    camera: Camera
-): Pair<Plane, Pose>? {
-    val center = android.graphics.PointF(width / 2f, height / 2f)
-    val hits = frame.hitTest(center.x, center.y)
-
-    val planeHit = hits.firstOrNull {
-        it.isValid(
-            depthPoint = true,
-            point = true,
-            planePoseInPolygon = true,
-            instantPlacementPoint = false,
-            minCameraDistance = Pair(camera, 0.5f),
-            predicate = { hitResult -> hitResult.distance <= 3.0f && hitResult.trackable is Plane },
-            planeTypes = setOf(Plane.Type.HORIZONTAL_UPWARD_FACING)
-        )
-    }
-
-    return planeHit?.let { hit ->
-        val plane = hit.trackable as Plane
-        val pose = hit.hitPose
-        Pair(plane, pose)
     }
 }
 

@@ -34,7 +34,7 @@ import kotlin.math.roundToInt
 
 class ARViewModel(private val context: Context) : ViewModel() {
 
-    private lateinit var nodeManager: ARNodeManager
+    lateinit var nodeManager: ARNodeManager
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     lateinit var locationManager: ARLocationManager
 
